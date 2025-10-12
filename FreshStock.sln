@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35027.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FreshStock.API", "FreshStock.API\FreshStock.API.csproj", "{36E42D44-2A0D-47FA-A12D-EC8763111A14}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{36E42D44-2A0D-47FA-A12D-EC8763111A14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36E42D44-2A0D-47FA-A12D-EC8763111A14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36E42D44-2A0D-47FA-A12D-EC8763111A14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36E42D44-2A0D-47FA-A12D-EC8763111A14}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E299C5CA-2C2E-4D78-B1ED-F7F8B6D72017}
+	EndGlobalSection
+EndGlobal

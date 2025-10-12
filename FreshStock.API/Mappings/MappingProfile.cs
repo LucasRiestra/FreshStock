@@ -1,0 +1,45 @@
+using AutoMapper;
+using FreshStock.API.DTOs;
+using FreshStock.API.Entities;
+
+namespace FreshStock.API.Mappings
+{
+    public class MappingProfile : Profile
+    {
+        public MappingProfile()
+        {
+            // Restaurante
+            CreateMap<Restaurante, RestauranteResponseDTO>();
+            CreateMap<CreateRestauranteDTO, Restaurante>();
+            CreateMap<UpdateRestauranteDTO, Restaurante>();
+
+            // Usuario
+            CreateMap<Usuario, UsuarioResponseDTO>();
+            CreateMap<CreateUsuarioDTO, Usuario>();
+            CreateMap<UpdateUsuarioDTO, Usuario>();
+
+            // Categoria
+            CreateMap<Categoria, CategoriaResponseDTO>();
+            CreateMap<CreateCategoriaDTO, Categoria>();
+
+            // Proveedor
+            CreateMap<Proveedor, ProveedorResponseDTO>();
+            CreateMap<CreateProveedorDTO, Proveedor>();
+            CreateMap<UpdateProveedorDTO, Proveedor>();
+
+            // Producto
+            CreateMap<Producto, ProductoResponseDTO>();
+            CreateMap<CreateProductoDTO, Producto>();
+            CreateMap<UpdateProductoDTO, Producto>();
+
+            // StockLocal
+            CreateMap<StockLocal, StockLocalResponseDTO>();
+            CreateMap<CreateStockLocalDTO, StockLocal>();
+            CreateMap<UpdateStockLocalDTO, StockLocal>();
+
+            // MovimientoInventario
+            CreateMap<MovimientoInventario, MovimientoInventarioResponseDTO>();
+            CreateMap<CreateMovimientoInventarioDTO, MovimientoInventario>();
+        }
+    }
+}
