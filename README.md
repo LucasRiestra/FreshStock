@@ -579,7 +579,7 @@ http://localhost:5140/swagger
 
 - GitHub: [@LucasRiestra](https://github.com/LucasRiestra)
 - LinkedIn: [Lucas Riestra](https://linkedin.com/in/lucasriestra)
-- Email: lucas.riestra@example.com
+- Email: lucas.riestra94@gmail.com
 
 ---
 
@@ -602,7 +602,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ¿Preguntas? ¿Sugerencias? ¿Oportunidades laborales?
 
-📧 Contáctame en [tu-email@example.com]
+📧 Contáctame en [lucas.riestra94@gmail.com]
 
 ---
 
