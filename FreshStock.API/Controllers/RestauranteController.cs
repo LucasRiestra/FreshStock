@@ -20,6 +20,7 @@ namespace FreshStock.API.Controllers
 
         // GET: api/restaurante
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<RestauranteResponseDTO>>> GetAll()
         {
             var restaurantes = await _restauranteService.GetAllAsync();
