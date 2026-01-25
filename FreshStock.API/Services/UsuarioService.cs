@@ -73,10 +73,10 @@ namespace FreshStock.API.Services
             if (usuario == null)
                 return null;
 
-            // Mantener el password existente
-            var currentPassword = usuario.Password;
+            // Mantener el password hash existente
+            var currentPasswordHash = usuario.PasswordHash;
             _mapper.Map(dto, usuario);
-            usuario.Password = currentPassword;
+            usuario.PasswordHash = currentPasswordHash;
 
             await _context.SaveChangesAsync();
 

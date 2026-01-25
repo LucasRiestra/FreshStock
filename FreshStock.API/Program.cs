@@ -1,5 +1,8 @@
 using FreshStock.API.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +15,31 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Configurar AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 
+// Configurar JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["SecretKey"];
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+    };
+});
+
 // Registrar Services
+builder.Services.AddScoped<FreshStock.API.Interfaces.IAuthService, FreshStock.API.Services.AuthService>();
 builder.Services.AddScoped<FreshStock.API.Interfaces.IRestauranteService, FreshStock.API.Services.RestauranteService>();
 builder.Services.AddScoped<FreshStock.API.Interfaces.IUsuarioService, FreshStock.API.Services.UsuarioService>();
 builder.Services.AddScoped<FreshStock.API.Interfaces.ICategoriaService, FreshStock.API.Services.CategoriaService>();
@@ -37,6 +64,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -15,7 +15,8 @@ namespace FreshStock.API.Mappings
 
             // Usuario
             CreateMap<Usuario, UsuarioResponseDTO>();
-            CreateMap<CreateUsuarioDTO, Usuario>();
+            CreateMap<CreateUsuarioDTO, Usuario>()
+                .ForMember(dest => dest.PasswordHash, opt => opt.MapFrom(src => src.Password));
             CreateMap<UpdateUsuarioDTO, Usuario>();
 
             // Categoria

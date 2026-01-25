@@ -2,10 +2,13 @@ using FreshStock.API.DTOs;
 using FreshStock.API.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
+using Microsoft.AspNetCore.Authorization;
+
 namespace FreshStock.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class MovimientoInventarioController : ControllerBase
     {
         private readonly IMovimientoInventarioService _movimientoService;
