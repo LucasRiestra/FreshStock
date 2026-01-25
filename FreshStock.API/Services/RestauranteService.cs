@@ -3,16 +3,16 @@ using FreshStock.API.Data;
 using FreshStock.API.DTOs;
 using FreshStock.API.Entities;
 using FreshStock.API.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 
 namespace FreshStock.API.Services
 {
     public class RestauranteService : IRestauranteService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly MongoDbContext _context;
         private readonly IMapper _mapper;
 
-        public RestauranteService(ApplicationDbContext context, IMapper mapper)
+        public RestauranteService(MongoDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
@@ -21,7 +21,7 @@ namespace FreshStock.API.Services
         public async Task<IEnumerable<RestauranteResponseDTO>> GetAllAsync()
         {
             var restaurantes = await _context.Restaurantes
-                .Where(r => r.Activo)
+                .Find(r => r.Activo)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<RestauranteResponseDTO>>(restaurantes);
@@ -31,7 +31,8 @@ namespace FreshStock.API.Services
         public async Task<RestauranteResponseDTO?> GetByIdAsync(int id)
         {
             var restaurante = await _context.Restaurantes
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .Find(r => r.Id == id)
+                .FirstOrDefaultAsync();
 
             if (restaurante == null)
                 return null;
@@ -43,10 +44,10 @@ namespace FreshStock.API.Services
         public async Task<RestauranteResponseDTO> CreateAsync(CreateRestauranteDTO dto)
         {
             var restaurante = _mapper.Map<Restaurante>(dto);
+            restaurante.Id = await _context.GetNextSequenceAsync("restaurantes");
             restaurante.Activo = true;
 
-            _context.Restaurantes.Add(restaurante);
-            await _context.SaveChangesAsync();
+            await _context.Restaurantes.InsertOneAsync(restaurante);
 
             var response = _mapper.Map<RestauranteResponseDTO>(restaurante);
             return response;
@@ -55,13 +56,15 @@ namespace FreshStock.API.Services
         public async Task<RestauranteResponseDTO?> UpdateAsync(UpdateRestauranteDTO dto)
         {
             var restaurante = await _context.Restaurantes
-                .FirstOrDefaultAsync(r => r.Id == dto.Id);
+                .Find(r => r.Id == dto.Id)
+                .FirstOrDefaultAsync();
 
             if (restaurante == null)
                 return null;
 
             _mapper.Map(dto, restaurante);
-            await _context.SaveChangesAsync();
+
+            await _context.Restaurantes.ReplaceOneAsync(r => r.Id == dto.Id, restaurante);
 
             var response = _mapper.Map<RestauranteResponseDTO>(restaurante);
             return response;
@@ -70,14 +73,15 @@ namespace FreshStock.API.Services
         public async Task<bool> DeleteAsync(int id)
         {
             var restaurante = await _context.Restaurantes
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .Find(r => r.Id == id)
+                .FirstOrDefaultAsync();
 
             if (restaurante == null)
                 return false;
 
             // Soft delete
-            restaurante.Activo = false;
-            await _context.SaveChangesAsync();
+            var update = Builders<Restaurante>.Update.Set(r => r.Activo, false);
+            await _context.Restaurantes.UpdateOneAsync(r => r.Id == id, update);
 
             return true;
         }

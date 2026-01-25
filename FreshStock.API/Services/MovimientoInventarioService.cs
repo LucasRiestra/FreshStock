@@ -3,16 +3,16 @@ using FreshStock.API.Data;
 using FreshStock.API.DTOs;
 using FreshStock.API.Entities;
 using FreshStock.API.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 
 namespace FreshStock.API.Services
 {
     public class MovimientoInventarioService : IMovimientoInventarioService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly MongoDbContext _context;
         private readonly IMapper _mapper;
 
-        public MovimientoInventarioService(ApplicationDbContext context, IMapper mapper)
+        public MovimientoInventarioService(MongoDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
@@ -21,7 +21,8 @@ namespace FreshStock.API.Services
         public async Task<IEnumerable<MovimientoInventarioResponseDTO>> GetAllAsync()
         {
             var movimientos = await _context.MovimientosInventario
-                .OrderByDescending(m => m.Fecha)
+                .Find(_ => true)
+                .SortByDescending(m => m.Fecha)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<MovimientoInventarioResponseDTO>>(movimientos);
@@ -31,7 +32,8 @@ namespace FreshStock.API.Services
         public async Task<MovimientoInventarioResponseDTO?> GetByIdAsync(int id)
         {
             var movimiento = await _context.MovimientosInventario
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .Find(m => m.Id == id)
+                .FirstOrDefaultAsync();
 
             if (movimiento == null)
                 return null;
@@ -43,8 +45,8 @@ namespace FreshStock.API.Services
         public async Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByRestauranteIdAsync(int restauranteId)
         {
             var movimientos = await _context.MovimientosInventario
-                .Where(m => m.RestauranteId == restauranteId)
-                .OrderByDescending(m => m.Fecha)
+                .Find(m => m.RestauranteId == restauranteId)
+                .SortByDescending(m => m.Fecha)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<MovimientoInventarioResponseDTO>>(movimientos);
@@ -54,8 +56,8 @@ namespace FreshStock.API.Services
         public async Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByProductoIdAsync(int productoId)
         {
             var movimientos = await _context.MovimientosInventario
-                .Where(m => m.ProductoId == productoId)
-                .OrderByDescending(m => m.Fecha)
+                .Find(m => m.ProductoId == productoId)
+                .SortByDescending(m => m.Fecha)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<MovimientoInventarioResponseDTO>>(movimientos);
@@ -65,8 +67,8 @@ namespace FreshStock.API.Services
         public async Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByUsuarioIdAsync(int usuarioId)
         {
             var movimientos = await _context.MovimientosInventario
-                .Where(m => m.UsuarioId == usuarioId)
-                .OrderByDescending(m => m.Fecha)
+                .Find(m => m.UsuarioId == usuarioId)
+                .SortByDescending(m => m.Fecha)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<MovimientoInventarioResponseDTO>>(movimientos);
@@ -75,166 +77,137 @@ namespace FreshStock.API.Services
 
         public async Task<MovimientoInventarioResponseDTO> CreateAsync(CreateMovimientoInventarioDTO dto)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-
-            try
+            // Obtener el costo del producto
+            var producto = await _context.Productos
+                .Find(p => p.Id == dto.ProductoId)
+                .FirstOrDefaultAsync();
+            if (producto == null)
             {
-                // Obtener el costo del producto
-                var producto = await _context.Productos.FindAsync(dto.ProductoId);
-                if (producto == null)
-                {
-                    throw new InvalidOperationException($"Producto con ID {dto.ProductoId} no encontrado");
-                }
-
-                // Crear el movimiento
-                var movimiento = _mapper.Map<MovimientoInventario>(dto);
-                movimiento.Fecha = DateTime.UtcNow;
-                movimiento.CostoUnitario = producto.CostoUnitario;
-
-                _context.MovimientosInventario.Add(movimiento);
-                await _context.SaveChangesAsync();
-
-                // Actualizar stock según el tipo de movimiento
-                await ActualizarStockAsync(movimiento);
-
-                await transaction.CommitAsync();
-
-                var response = _mapper.Map<MovimientoInventarioResponseDTO>(movimiento);
-                return response;
+                throw new InvalidOperationException($"Producto con ID {dto.ProductoId} no encontrado");
             }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+
+            // Crear el movimiento
+            var movimiento = _mapper.Map<MovimientoInventario>(dto);
+            movimiento.Id = await _context.GetNextSequenceAsync("movimientosInventario");
+            movimiento.Fecha = DateTime.UtcNow;
+            movimiento.CostoUnitario = producto.CostoUnitario;
+
+            await _context.MovimientosInventario.InsertOneAsync(movimiento);
+
+            // Actualizar stock según el tipo de movimiento
+            await ActualizarStockAsync(movimiento);
+
+            var response = _mapper.Map<MovimientoInventarioResponseDTO>(movimiento);
+            return response;
         }
 
         public async Task<MovimientoInventarioResponseDTO> RegistrarMermaAsync(CreateMermaDTO dto)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-
-            try
+            // Obtener el costo del producto
+            var producto = await _context.Productos
+                .Find(p => p.Id == dto.ProductoId)
+                .FirstOrDefaultAsync();
+            if (producto == null)
             {
-                // Obtener el costo del producto
-                var producto = await _context.Productos.FindAsync(dto.ProductoId);
-                if (producto == null)
-                {
-                    throw new InvalidOperationException($"Producto con ID {dto.ProductoId} no encontrado");
-                }
-
-                // Validar que exista stock
-                var stock = await _context.StockLocal
-                    .FirstOrDefaultAsync(s =>
-                        s.ProductoId == dto.ProductoId &&
-                        s.RestauranteId == dto.RestauranteId &&
-                        s.Lote == dto.Lote);
-
-                if (stock == null)
-                {
-                    throw new InvalidOperationException(
-                        $"No hay stock disponible para el producto {dto.ProductoId} " +
-                        $"en el restaurante {dto.RestauranteId} con lote {dto.Lote}");
-                }
-
-                if (stock.Cantidad < dto.Cantidad)
-                {
-                    throw new InvalidOperationException(
-                        $"Stock insuficiente. Disponible: {stock.Cantidad}, Solicitado: {dto.Cantidad}");
-                }
-
-                // Crear movimiento de salida por merma
-                var movimiento = new MovimientoInventario
-                {
-                    Tipo = "Salida",
-                    ProductoId = dto.ProductoId,
-                    RestauranteId = dto.RestauranteId,
-                    Cantidad = dto.Cantidad,
-                    Lote = dto.Lote,
-                    Motivo = $"Merma - {dto.TipoMerma}",
-                    CostoUnitario = producto.CostoUnitario,
-                    UsuarioId = dto.UsuarioId,
-                    Fecha = DateTime.UtcNow,
-                    RestauranteDestinoId = null
-                };
-
-                _context.MovimientosInventario.Add(movimiento);
-                await _context.SaveChangesAsync();
-
-                // Actualizar stock
-                await ActualizarStockAsync(movimiento);
-
-                await transaction.CommitAsync();
-
-                var response = _mapper.Map<MovimientoInventarioResponseDTO>(movimiento);
-                return response;
+                throw new InvalidOperationException($"Producto con ID {dto.ProductoId} no encontrado");
             }
-            catch
+
+            // Validar que exista stock
+            var stock = await _context.StockLocal
+                .Find(s =>
+                    s.ProductoId == dto.ProductoId &&
+                    s.RestauranteId == dto.RestauranteId &&
+                    s.Lote == dto.Lote)
+                .FirstOrDefaultAsync();
+
+            if (stock == null)
             {
-                await transaction.RollbackAsync();
-                throw;
+                throw new InvalidOperationException(
+                    $"No hay stock disponible para el producto {dto.ProductoId} " +
+                    $"en el restaurante {dto.RestauranteId} con lote {dto.Lote}");
             }
+
+            if (stock.Cantidad < dto.Cantidad)
+            {
+                throw new InvalidOperationException(
+                    $"Stock insuficiente. Disponible: {stock.Cantidad}, Solicitado: {dto.Cantidad}");
+            }
+
+            // Crear movimiento de salida por merma
+            var movimiento = new MovimientoInventario
+            {
+                Id = await _context.GetNextSequenceAsync("movimientosInventario"),
+                Tipo = "Salida",
+                ProductoId = dto.ProductoId,
+                RestauranteId = dto.RestauranteId,
+                Cantidad = dto.Cantidad,
+                Lote = dto.Lote,
+                Motivo = $"Merma - {dto.TipoMerma}",
+                CostoUnitario = producto.CostoUnitario,
+                UsuarioId = dto.UsuarioId,
+                Fecha = DateTime.UtcNow,
+                RestauranteDestinoId = null
+            };
+
+            await _context.MovimientosInventario.InsertOneAsync(movimiento);
+
+            // Actualizar stock
+            await ActualizarStockAsync(movimiento);
+
+            var response = _mapper.Map<MovimientoInventarioResponseDTO>(movimiento);
+            return response;
         }
 
         public async Task<MovimientoInventarioResponseDTO> RevertirMovimientoAsync(int movimientoId, int usuarioId, string motivo)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // Buscar el movimiento original
+            var movimientoOriginal = await _context.MovimientosInventario
+                .Find(m => m.Id == movimientoId)
+                .FirstOrDefaultAsync();
 
-            try
+            if (movimientoOriginal == null)
             {
-                // Buscar el movimiento original
-                var movimientoOriginal = await _context.MovimientosInventario
-                    .FirstOrDefaultAsync(m => m.Id == movimientoId);
-
-                if (movimientoOriginal == null)
-                {
-                    throw new InvalidOperationException($"Movimiento con ID {movimientoId} no encontrado");
-                }
-
-                // Crear movimiento de reversión (inverso)
-                var movimientoReversion = new MovimientoInventario
-                {
-                    Tipo = movimientoOriginal.Tipo == "Entrada" ? "Salida" : "Entrada",
-                    ProductoId = movimientoOriginal.ProductoId,
-                    RestauranteId = movimientoOriginal.Tipo == "Entrada"
-                        ? movimientoOriginal.RestauranteId
-                        : (movimientoOriginal.RestauranteDestinoId ?? movimientoOriginal.RestauranteId),
-                    Cantidad = movimientoOriginal.Cantidad,
-                    Lote = movimientoOriginal.Lote,
-                    Motivo = $"Reversión: {motivo}",
-                    CostoUnitario = movimientoOriginal.CostoUnitario,
-                    UsuarioId = usuarioId,
-                    Fecha = DateTime.UtcNow,
-                    RestauranteDestinoId = movimientoOriginal.Tipo == "Salida" && movimientoOriginal.RestauranteDestinoId.HasValue
-                        ? movimientoOriginal.RestauranteId
-                        : null
-                };
-
-                _context.MovimientosInventario.Add(movimientoReversion);
-                await _context.SaveChangesAsync();
-
-                // Actualizar stock con la reversión
-                await ActualizarStockAsync(movimientoReversion);
-
-                await transaction.CommitAsync();
-
-                var response = _mapper.Map<MovimientoInventarioResponseDTO>(movimientoReversion);
-                return response;
+                throw new InvalidOperationException($"Movimiento con ID {movimientoId} no encontrado");
             }
-            catch
+
+            // Crear movimiento de reversión (inverso)
+            var movimientoReversion = new MovimientoInventario
             {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                Id = await _context.GetNextSequenceAsync("movimientosInventario"),
+                Tipo = movimientoOriginal.Tipo == "Entrada" ? "Salida" : "Entrada",
+                ProductoId = movimientoOriginal.ProductoId,
+                RestauranteId = movimientoOriginal.Tipo == "Entrada"
+                    ? movimientoOriginal.RestauranteId
+                    : (movimientoOriginal.RestauranteDestinoId ?? movimientoOriginal.RestauranteId),
+                Cantidad = movimientoOriginal.Cantidad,
+                Lote = movimientoOriginal.Lote,
+                Motivo = $"Reversión: {motivo}",
+                CostoUnitario = movimientoOriginal.CostoUnitario,
+                UsuarioId = usuarioId,
+                Fecha = DateTime.UtcNow,
+                RestauranteDestinoId = movimientoOriginal.Tipo == "Salida" && movimientoOriginal.RestauranteDestinoId.HasValue
+                    ? movimientoOriginal.RestauranteId
+                    : null
+            };
+
+            await _context.MovimientosInventario.InsertOneAsync(movimientoReversion);
+
+            // Actualizar stock con la reversión
+            await ActualizarStockAsync(movimientoReversion);
+
+            var response = _mapper.Map<MovimientoInventarioResponseDTO>(movimientoReversion);
+            return response;
         }
 
         private async Task ActualizarStockAsync(MovimientoInventario movimiento)
         {
             // Buscar stock existente
             var stock = await _context.StockLocal
-                .FirstOrDefaultAsync(s =>
+                .Find(s =>
                     s.ProductoId == movimiento.ProductoId &&
                     s.RestauranteId == movimiento.RestauranteId &&
-                    s.Lote == movimiento.Lote);
+                    s.Lote == movimiento.Lote)
+                .FirstOrDefaultAsync();
 
             if (movimiento.Tipo == "Entrada")
             {
@@ -243,6 +216,7 @@ namespace FreshStock.API.Services
                     // Crear nuevo registro de stock
                     stock = new StockLocal
                     {
+                        Id = await _context.GetNextSequenceAsync("stockLocal"),
                         ProductoId = movimiento.ProductoId,
                         RestauranteId = movimiento.RestauranteId,
                         Lote = movimiento.Lote,
@@ -250,12 +224,13 @@ namespace FreshStock.API.Services
                         CostoUnitario = movimiento.CostoUnitario ?? 0,
                         FechaEntrada = DateTime.UtcNow
                     };
-                    _context.StockLocal.Add(stock);
+                    await _context.StockLocal.InsertOneAsync(stock);
                 }
                 else
                 {
                     // Incrementar stock existente
-                    stock.Cantidad += movimiento.Cantidad;
+                    var update = Builders<StockLocal>.Update.Inc(s => s.Cantidad, movimiento.Cantidad);
+                    await _context.StockLocal.UpdateOneAsync(s => s.Id == stock.Id, update);
                 }
             }
             else if (movimiento.Tipo == "Salida")
@@ -274,12 +249,17 @@ namespace FreshStock.API.Services
                 }
 
                 // Decrementar stock
-                stock.Cantidad -= movimiento.Cantidad;
+                var newQuantity = stock.Cantidad - movimiento.Cantidad;
 
                 // Si el stock llega a 0, eliminar el registro
-                if (stock.Cantidad == 0)
+                if (newQuantity == 0)
                 {
-                    _context.StockLocal.Remove(stock);
+                    await _context.StockLocal.DeleteOneAsync(s => s.Id == stock.Id);
+                }
+                else
+                {
+                    var update = Builders<StockLocal>.Update.Set(s => s.Cantidad, newQuantity);
+                    await _context.StockLocal.UpdateOneAsync(s => s.Id == stock.Id, update);
                 }
             }
 
@@ -287,16 +267,18 @@ namespace FreshStock.API.Services
             if (movimiento.RestauranteDestinoId.HasValue && movimiento.Tipo == "Salida")
             {
                 var stockDestino = await _context.StockLocal
-                    .FirstOrDefaultAsync(s =>
+                    .Find(s =>
                         s.ProductoId == movimiento.ProductoId &&
                         s.RestauranteId == movimiento.RestauranteDestinoId.Value &&
-                        s.Lote == movimiento.Lote);
+                        s.Lote == movimiento.Lote)
+                    .FirstOrDefaultAsync();
 
                 if (stockDestino == null)
                 {
                     // Crear stock en restaurante destino
                     stockDestino = new StockLocal
                     {
+                        Id = await _context.GetNextSequenceAsync("stockLocal"),
                         ProductoId = movimiento.ProductoId,
                         RestauranteId = movimiento.RestauranteDestinoId.Value,
                         Lote = movimiento.Lote,
@@ -304,16 +286,15 @@ namespace FreshStock.API.Services
                         CostoUnitario = movimiento.CostoUnitario ?? 0,
                         FechaEntrada = DateTime.UtcNow
                     };
-                    _context.StockLocal.Add(stockDestino);
+                    await _context.StockLocal.InsertOneAsync(stockDestino);
                 }
                 else
                 {
                     // Incrementar stock en restaurante destino
-                    stockDestino.Cantidad += movimiento.Cantidad;
+                    var update = Builders<StockLocal>.Update.Inc(s => s.Cantidad, movimiento.Cantidad);
+                    await _context.StockLocal.UpdateOneAsync(s => s.Id == stockDestino.Id, update);
                 }
             }
-
-            await _context.SaveChangesAsync();
         }
     }
 }

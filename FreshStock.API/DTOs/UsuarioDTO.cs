@@ -5,8 +5,7 @@ namespace FreshStock.API.DTOs
     // POST - Crear nuevo usuario
     public class CreateUsuarioDTO
     {
-        [Required]
-        public int RestauranteId { get; set; }
+        public int? RestauranteId { get; set; }
 
         [Required]
         [MaxLength(100)]
@@ -54,7 +53,7 @@ namespace FreshStock.API.DTOs
     public class UsuarioResponseDTO
     {
         public int Id { get; set; }
-        public int RestauranteId { get; set; }
+        public int? RestauranteId { get; set; }
         public string Nombre { get; set; }
         public string Email { get; set; }
         public string Rol { get; set; }

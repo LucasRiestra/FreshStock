@@ -401,3 +401,8 @@ FodyWeavers.xsd
 # appsettings con información sensible
 appsettings.Development.json
 appsettings.Production.json
+
+# Environment variables
+.env
+.env.*
+!.env.example

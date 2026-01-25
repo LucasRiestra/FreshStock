@@ -3,16 +3,16 @@ using FreshStock.API.Data;
 using FreshStock.API.DTOs;
 using FreshStock.API.Entities;
 using FreshStock.API.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 
 namespace FreshStock.API.Services
 {
     public class UsuarioService : IUsuarioService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly MongoDbContext _context;
         private readonly IMapper _mapper;
 
-        public UsuarioService(ApplicationDbContext context, IMapper mapper)
+        public UsuarioService(MongoDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
@@ -21,7 +21,7 @@ namespace FreshStock.API.Services
         public async Task<IEnumerable<UsuarioResponseDTO>> GetAllAsync()
         {
             var usuarios = await _context.Usuarios
-                .Where(u => u.Activo)
+                .Find(u => u.Activo)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<UsuarioResponseDTO>>(usuarios);
@@ -31,7 +31,8 @@ namespace FreshStock.API.Services
         public async Task<UsuarioResponseDTO?> GetByIdAsync(int id)
         {
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Id == id);
+                .Find(u => u.Id == id)
+                .FirstOrDefaultAsync();
 
             if (usuario == null)
                 return null;
@@ -43,7 +44,7 @@ namespace FreshStock.API.Services
         public async Task<IEnumerable<UsuarioResponseDTO>> GetByRestauranteIdAsync(int restauranteId)
         {
             var usuarios = await _context.Usuarios
-                .Where(u => u.RestauranteId == restauranteId && u.Activo)
+                .Find(u => u.RestauranteId == restauranteId && u.Activo)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<UsuarioResponseDTO>>(usuarios);
@@ -53,13 +54,10 @@ namespace FreshStock.API.Services
         public async Task<UsuarioResponseDTO> CreateAsync(CreateUsuarioDTO dto)
         {
             var usuario = _mapper.Map<Usuario>(dto);
+            usuario.Id = await _context.GetNextSequenceAsync("usuarios");
             usuario.Activo = true;
 
-            // TODO: Hash password antes de guardar (BCrypt, etc.)
-            // usuario.Password = HashPassword(dto.Password);
-
-            _context.Usuarios.Add(usuario);
-            await _context.SaveChangesAsync();
+            await _context.Usuarios.InsertOneAsync(usuario);
 
             var response = _mapper.Map<UsuarioResponseDTO>(usuario);
             return response;
@@ -68,7 +66,8 @@ namespace FreshStock.API.Services
         public async Task<UsuarioResponseDTO?> UpdateAsync(UpdateUsuarioDTO dto)
         {
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Id == dto.Id);
+                .Find(u => u.Id == dto.Id)
+                .FirstOrDefaultAsync();
 
             if (usuario == null)
                 return null;
@@ -78,7 +77,7 @@ namespace FreshStock.API.Services
             _mapper.Map(dto, usuario);
             usuario.PasswordHash = currentPasswordHash;
 
-            await _context.SaveChangesAsync();
+            await _context.Usuarios.ReplaceOneAsync(u => u.Id == dto.Id, usuario);
 
             var response = _mapper.Map<UsuarioResponseDTO>(usuario);
             return response;
@@ -87,14 +86,15 @@ namespace FreshStock.API.Services
         public async Task<bool> DeleteAsync(int id)
         {
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Id == id);
+                .Find(u => u.Id == id)
+                .FirstOrDefaultAsync();
 
             if (usuario == null)
                 return false;
 
             // Soft delete
-            usuario.Activo = false;
-            await _context.SaveChangesAsync();
+            var update = Builders<Usuario>.Update.Set(u => u.Activo, false);
+            await _context.Usuarios.UpdateOneAsync(u => u.Id == id, update);
 
             return true;
         }

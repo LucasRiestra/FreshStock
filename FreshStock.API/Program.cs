@@ -1,16 +1,24 @@
 using FreshStock.API.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cargar variables de entorno desde .env
+Env.Load();
+
 // Add services to the container.
 
-// Configurar DbContext con PostgreSQL
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Configurar MongoDB
+var mongoConnectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
+    ?? builder.Configuration.GetConnectionString("MongoDB");
+var mongoDatabaseName = Environment.GetEnvironmentVariable("MONGODB_DATABASE_NAME")
+    ?? "FreshStockDB";
+
+builder.Services.AddSingleton<MongoDbContext>(sp =>
+    new MongoDbContext(mongoConnectionString!, mongoDatabaseName));
 
 // Configurar AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
@@ -51,7 +59,32 @@ builder.Services.AddScoped<FreshStock.API.Interfaces.IMovimientoInventarioServic
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Ingresa tu token JWT. Ejemplo: eyJhbGciOiJIUzI1NiIs..."
+    });
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 

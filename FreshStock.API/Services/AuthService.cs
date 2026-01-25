@@ -4,7 +4,7 @@ using FreshStock.API.DTOs;
 using FreshStock.API.DTOs.Auth;
 using FreshStock.API.Entities;
 using FreshStock.API.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -16,11 +16,11 @@ namespace FreshStock.API.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly MongoDbContext _context;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
 
-        public AuthService(ApplicationDbContext context, IMapper mapper, IConfiguration configuration)
+        public AuthService(MongoDbContext context, IMapper mapper, IConfiguration configuration)
         {
             _context = context;
             _mapper = mapper;
@@ -31,7 +31,8 @@ namespace FreshStock.API.Services
         {
             // Buscar usuario por email
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Email == request.Email && u.Activo);
+                .Find(u => u.Email == request.Email && u.Activo)
+                .FirstOrDefaultAsync();
 
             if (usuario == null)
                 return null;
@@ -45,9 +46,13 @@ namespace FreshStock.API.Services
             var refreshToken = GenerateRefreshToken();
 
             // Guardar refresh token
+            var update = Builders<Usuario>.Update
+                .Set(u => u.RefreshToken, refreshToken)
+                .Set(u => u.RefreshTokenExpiry, DateTime.UtcNow.AddDays(7));
+            await _context.Usuarios.UpdateOneAsync(u => u.Id == usuario.Id, update);
+
             usuario.RefreshToken = refreshToken;
             usuario.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
-            await _context.SaveChangesAsync();
 
             var usuarioDto = _mapper.Map<UsuarioResponseDTO>(usuario);
 
@@ -64,22 +69,19 @@ namespace FreshStock.API.Services
         {
             // Verificar si el email ya existe
             var existingUser = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
+                .Find(u => u.Email == request.Email)
+                .FirstOrDefaultAsync();
 
             if (existingUser != null)
                 throw new InvalidOperationException("El email ya está registrado");
 
-            // Verificar que el restaurante existe
-            var restaurante = await _context.Restaurantes
-                .FirstOrDefaultAsync(r => r.Id == request.RestauranteId && r.Activo);
-
-            if (restaurante == null)
-                throw new InvalidOperationException("El restaurante no existe o está inactivo");
+            // Obtener el siguiente ID secuencial
+            var newId = await _context.GetNextSequenceAsync("usuarios");
 
             // Crear nuevo usuario
             var usuario = new Usuario
             {
-                RestauranteId = request.RestauranteId,
+                Id = newId,
                 Nombre = request.Nombre,
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
@@ -87,8 +89,7 @@ namespace FreshStock.API.Services
                 Activo = true
             };
 
-            _context.Usuarios.Add(usuario);
-            await _context.SaveChangesAsync();
+            await _context.Usuarios.InsertOneAsync(usuario);
 
             return _mapper.Map<UsuarioResponseDTO>(usuario);
         }
@@ -96,7 +97,8 @@ namespace FreshStock.API.Services
         public async Task<LoginResponseDTO?> RefreshTokenAsync(string refreshToken)
         {
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken && u.Activo);
+                .Find(u => u.RefreshToken == refreshToken && u.Activo)
+                .FirstOrDefaultAsync();
 
             if (usuario == null || usuario.RefreshTokenExpiry < DateTime.UtcNow)
                 return null;
@@ -106,9 +108,13 @@ namespace FreshStock.API.Services
             var newRefreshToken = GenerateRefreshToken();
 
             // Actualizar refresh token
+            var update = Builders<Usuario>.Update
+                .Set(u => u.RefreshToken, newRefreshToken)
+                .Set(u => u.RefreshTokenExpiry, DateTime.UtcNow.AddDays(7));
+            await _context.Usuarios.UpdateOneAsync(u => u.Id == usuario.Id, update);
+
             usuario.RefreshToken = newRefreshToken;
             usuario.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
-            await _context.SaveChangesAsync();
 
             var usuarioDto = _mapper.Map<UsuarioResponseDTO>(usuario);
 
@@ -124,14 +130,16 @@ namespace FreshStock.API.Services
         public async Task<bool> RevokeTokenAsync(string refreshToken)
         {
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+                .Find(u => u.RefreshToken == refreshToken)
+                .FirstOrDefaultAsync();
 
             if (usuario == null)
                 return false;
 
-            usuario.RefreshToken = null;
-            usuario.RefreshTokenExpiry = null;
-            await _context.SaveChangesAsync();
+            var update = Builders<Usuario>.Update
+                .Set(u => u.RefreshToken, (string?)null)
+                .Set(u => u.RefreshTokenExpiry, (DateTime?)null);
+            await _context.Usuarios.UpdateOneAsync(u => u.Id == usuario.Id, update);
 
             return true;
         }
