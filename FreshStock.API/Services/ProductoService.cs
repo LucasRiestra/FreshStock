@@ -18,6 +18,26 @@ namespace FreshStock.API.Services
             _mapper = mapper;
         }
 
+        // Obtener IDs de proveedores asignados a un restaurante
+        private async Task<List<int>> GetProveedorIdsByRestauranteAsync(int restauranteId)
+        {
+            var asignaciones = await _context.RestauranteProveedores
+                .Find(rp => rp.RestauranteId == restauranteId && rp.Activo)
+                .ToListAsync();
+
+            return asignaciones.Select(rp => rp.ProveedorId).ToList();
+        }
+
+        // Obtener IDs de restaurantes de un usuario
+        private async Task<List<int>> GetRestauranteIdsByUsuarioAsync(int usuarioId)
+        {
+            var asignaciones = await _context.UsuarioRestaurantes
+                .Find(ur => ur.UsuarioId == usuarioId && ur.Activo)
+                .ToListAsync();
+
+            return asignaciones.Select(ur => ur.RestauranteId).ToList();
+        }
+
         public async Task<IEnumerable<ProductoResponseDTO>> GetAllAsync()
         {
             var productos = await _context.Productos
@@ -55,6 +75,52 @@ namespace FreshStock.API.Services
         {
             var productos = await _context.Productos
                 .Find(p => p.ProveedorId == proveedorId && p.Activo)
+                .ToListAsync();
+
+            var response = _mapper.Map<IEnumerable<ProductoResponseDTO>>(productos);
+            return response;
+        }
+
+        // Obtener productos de los proveedores asignados a un restaurante específico
+        public async Task<IEnumerable<ProductoResponseDTO>> GetByRestauranteIdAsync(int restauranteId)
+        {
+            // 1. Obtener los proveedores asignados a este restaurante
+            var proveedorIds = await GetProveedorIdsByRestauranteAsync(restauranteId);
+
+            if (!proveedorIds.Any())
+                return Enumerable.Empty<ProductoResponseDTO>();
+
+            // 2. Obtener los productos de esos proveedores
+            var productos = await _context.Productos
+                .Find(p => proveedorIds.Contains(p.ProveedorId) && p.Activo)
+                .ToListAsync();
+
+            var response = _mapper.Map<IEnumerable<ProductoResponseDTO>>(productos);
+            return response;
+        }
+
+        // Obtener productos de todos los restaurantes a los que el usuario tiene acceso
+        public async Task<IEnumerable<ProductoResponseDTO>> GetByUsuarioIdAsync(int usuarioId)
+        {
+            // 1. Obtener los restaurantes del usuario
+            var restauranteIds = await GetRestauranteIdsByUsuarioAsync(usuarioId);
+
+            if (!restauranteIds.Any())
+                return Enumerable.Empty<ProductoResponseDTO>();
+
+            // 2. Obtener todos los proveedores de esos restaurantes
+            var asignaciones = await _context.RestauranteProveedores
+                .Find(rp => restauranteIds.Contains(rp.RestauranteId) && rp.Activo)
+                .ToListAsync();
+
+            var proveedorIds = asignaciones.Select(rp => rp.ProveedorId).Distinct().ToList();
+
+            if (!proveedorIds.Any())
+                return Enumerable.Empty<ProductoResponseDTO>();
+
+            // 3. Obtener los productos de esos proveedores
+            var productos = await _context.Productos
+                .Find(p => proveedorIds.Contains(p.ProveedorId) && p.Activo)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<ProductoResponseDTO>>(productos);

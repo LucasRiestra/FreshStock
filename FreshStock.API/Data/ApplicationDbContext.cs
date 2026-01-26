@@ -38,19 +38,71 @@ namespace FreshStock.API.Data
                 entity.Property(e => e.Nombre).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.PasswordHash).IsRequired().HasMaxLength(255);
-                entity.Property(e => e.Rol).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Activo).HasDefaultValue(true);
                 entity.Property(e => e.RefreshToken).HasMaxLength(500);
                 entity.Property(e => e.RefreshTokenExpiry);
 
-                // Relación con Restaurante
+                // Índice único para email
+                entity.HasIndex(e => e.Email).IsUnique();
+            });
+
+            // Configuración de UsuarioRestaurante (relación N:M)
+            modelBuilder.Entity<UsuarioRestaurante>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Rol).IsRequired();
+                entity.Property(e => e.Activo).HasDefaultValue(true);
+
+                entity.HasOne<Usuario>()
+                    .WithMany()
+                    .HasForeignKey(e => e.UsuarioId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasOne<Restaurante>()
                     .WithMany()
                     .HasForeignKey(e => e.RestauranteId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Índice único para email
-                entity.HasIndex(e => e.Email).IsUnique();
+                // Índice único: un usuario solo puede tener un rol por restaurante
+                entity.HasIndex(e => new { e.UsuarioId, e.RestauranteId }).IsUnique();
+            });
+
+            // Configuración de RestauranteProveedor (relación N:M)
+            modelBuilder.Entity<RestauranteProveedor>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Activo).HasDefaultValue(true);
+
+                entity.HasOne<Restaurante>()
+                    .WithMany()
+                    .HasForeignKey(e => e.RestauranteId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<Proveedor>()
+                    .WithMany()
+                    .HasForeignKey(e => e.ProveedorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.RestauranteId, e.ProveedorId }).IsUnique();
+            });
+
+            // Configuración de RestauranteCategoria (relación N:M)
+            modelBuilder.Entity<RestauranteCategoria>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Activo).HasDefaultValue(true);
+
+                entity.HasOne<Restaurante>()
+                    .WithMany()
+                    .HasForeignKey(e => e.RestauranteId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<Categoria>()
+                    .WithMany()
+                    .HasForeignKey(e => e.CategoriaId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.RestauranteId, e.CategoriaId }).IsUnique();
             });
 
             // Configuración de Categoria

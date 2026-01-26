@@ -56,6 +56,11 @@ builder.Services.AddScoped<FreshStock.API.Interfaces.IProductoService, FreshStoc
 builder.Services.AddScoped<FreshStock.API.Interfaces.IStockLocalService, FreshStock.API.Services.StockLocalService>();
 builder.Services.AddScoped<FreshStock.API.Interfaces.IMovimientoInventarioService, FreshStock.API.Services.MovimientoInventarioService>();
 
+// Nuevos servicios para relaciones N:M
+builder.Services.AddScoped<FreshStock.API.Interfaces.IUsuarioRestauranteService, FreshStock.API.Services.UsuarioRestauranteService>();
+builder.Services.AddScoped<FreshStock.API.Interfaces.IRestauranteProveedorService, FreshStock.API.Services.RestauranteProveedorService>();
+builder.Services.AddScoped<FreshStock.API.Interfaces.IRestauranteCategoriaService, FreshStock.API.Services.RestauranteCategoriaService>();
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

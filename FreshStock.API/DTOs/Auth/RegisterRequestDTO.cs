@@ -15,9 +15,5 @@ namespace FreshStock.API.DTOs.Auth
         [Required(ErrorMessage = "La contraseña es requerida")]
         [MinLength(8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres")]
         public string Password { get; set; }
-
-        [Required(ErrorMessage = "El rol es requerido")]
-        [RegularExpression("^(Admin|Gerente|Empleado)$", ErrorMessage = "El rol debe ser Admin, Gerente o Empleado")]
-        public string Rol { get; set; }
     }
 }

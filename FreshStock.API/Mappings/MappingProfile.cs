@@ -41,6 +41,21 @@ namespace FreshStock.API.Mappings
             // MovimientoInventario
             CreateMap<MovimientoInventario, MovimientoInventarioResponseDTO>();
             CreateMap<CreateMovimientoInventarioDTO, MovimientoInventario>();
+
+            // UsuarioRestaurante
+            CreateMap<UsuarioRestaurante, UsuarioRestauranteResponseDTO>();
+            CreateMap<CreateUsuarioRestauranteDTO, UsuarioRestaurante>();
+            CreateMap<UpdateUsuarioRestauranteDTO, UsuarioRestaurante>();
+
+            // RestauranteProveedor
+            CreateMap<RestauranteProveedor, RestauranteProveedorResponseDTO>();
+            CreateMap<CreateRestauranteProveedorDTO, RestauranteProveedor>();
+            CreateMap<UpdateRestauranteProveedorDTO, RestauranteProveedor>();
+
+            // RestauranteCategoria
+            CreateMap<RestauranteCategoria, RestauranteCategoriaResponseDTO>();
+            CreateMap<CreateRestauranteCategoriaDTO, RestauranteCategoria>();
+            CreateMap<UpdateRestauranteCategoriaDTO, RestauranteCategoria>();
         }
     }
 }

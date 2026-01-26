@@ -43,8 +43,16 @@ namespace FreshStock.API.Services
 
         public async Task<IEnumerable<UsuarioResponseDTO>> GetByRestauranteIdAsync(int restauranteId)
         {
+            // Obtener los IDs de usuarios asignados a este restaurante
+            var usuarioRestaurantes = await _context.UsuarioRestaurantes
+                .Find(ur => ur.RestauranteId == restauranteId && ur.Activo)
+                .ToListAsync();
+
+            var usuarioIds = usuarioRestaurantes.Select(ur => ur.UsuarioId).ToList();
+
+            // Obtener los usuarios
             var usuarios = await _context.Usuarios
-                .Find(u => u.RestauranteId == restauranteId && u.Activo)
+                .Find(u => usuarioIds.Contains(u.Id) && u.Activo)
                 .ToListAsync();
 
             var response = _mapper.Map<IEnumerable<UsuarioResponseDTO>>(usuarios);

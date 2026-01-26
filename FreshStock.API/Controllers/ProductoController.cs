@@ -54,6 +54,24 @@ namespace FreshStock.API.Controllers
             return Ok(productos);
         }
 
+        // GET: api/producto/restaurante/5
+        // Obtiene productos de los proveedores asignados a un restaurante
+        [HttpGet("restaurante/{restauranteId}")]
+        public async Task<ActionResult<IEnumerable<ProductoResponseDTO>>> GetByRestauranteId(int restauranteId)
+        {
+            var productos = await _productoService.GetByRestauranteIdAsync(restauranteId);
+            return Ok(productos);
+        }
+
+        // GET: api/producto/usuario/5
+        // Obtiene productos de todos los restaurantes a los que el usuario tiene acceso
+        [HttpGet("usuario/{usuarioId}")]
+        public async Task<ActionResult<IEnumerable<ProductoResponseDTO>>> GetByUsuarioId(int usuarioId)
+        {
+            var productos = await _productoService.GetByUsuarioIdAsync(usuarioId);
+            return Ok(productos);
+        }
+
         // POST: api/producto
         [HttpPost]
         public async Task<ActionResult<ProductoResponseDTO>> Create([FromBody] CreateProductoDTO dto)
