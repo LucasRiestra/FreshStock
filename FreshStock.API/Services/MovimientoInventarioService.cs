@@ -53,6 +53,18 @@ namespace FreshStock.API.Services
             return response;
         }
 
+        public async Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByRestaurantesIdsAsync(IEnumerable<int> restauranteIds)
+        {
+            var ids = restauranteIds.ToList();
+            var movimientos = await _context.MovimientosInventario
+                .Find(m => ids.Contains(m.RestauranteId))
+                .SortByDescending(m => m.Fecha)
+                .ToListAsync();
+
+            var response = _mapper.Map<IEnumerable<MovimientoInventarioResponseDTO>>(movimientos);
+            return response;
+        }
+
         public async Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByProductoIdAsync(int productoId)
         {
             var movimientos = await _context.MovimientosInventario

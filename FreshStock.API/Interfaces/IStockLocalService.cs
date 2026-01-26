@@ -7,6 +7,7 @@ namespace FreshStock.API.Interfaces
         Task<IEnumerable<StockLocalResponseDTO>> GetAllAsync();
         Task<StockLocalResponseDTO?> GetByIdAsync(int id);
         Task<IEnumerable<StockLocalResponseDTO>> GetByRestauranteIdAsync(int restauranteId);
+        Task<IEnumerable<StockLocalResponseDTO>> GetByRestaurantesIdsAsync(IEnumerable<int> restauranteIds);
         Task<IEnumerable<StockLocalResponseDTO>> GetByProductoIdAsync(int productoId);
         Task<StockLocalResponseDTO?> GetByLoteAsync(int productoId, int restauranteId, string lote);
         Task<StockLocalResponseDTO> CreateAsync(CreateStockLocalDTO dto);

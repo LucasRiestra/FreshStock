@@ -51,6 +51,17 @@ namespace FreshStock.API.Services
             return response;
         }
 
+        public async Task<IEnumerable<StockLocalResponseDTO>> GetByRestaurantesIdsAsync(IEnumerable<int> restauranteIds)
+        {
+            var ids = restauranteIds.ToList();
+            var stocks = await _context.StockLocal
+                .Find(s => ids.Contains(s.RestauranteId))
+                .ToListAsync();
+
+            var response = _mapper.Map<IEnumerable<StockLocalResponseDTO>>(stocks);
+            return response;
+        }
+
         public async Task<IEnumerable<StockLocalResponseDTO>> GetByProductoIdAsync(int productoId)
         {
             var stocks = await _context.StockLocal

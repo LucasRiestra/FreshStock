@@ -61,6 +61,9 @@ builder.Services.AddScoped<FreshStock.API.Interfaces.IUsuarioRestauranteService,
 builder.Services.AddScoped<FreshStock.API.Interfaces.IRestauranteProveedorService, FreshStock.API.Services.RestauranteProveedorService>();
 builder.Services.AddScoped<FreshStock.API.Interfaces.IRestauranteCategoriaService, FreshStock.API.Services.RestauranteCategoriaService>();
 
+// Servicio de permisos y autorización
+builder.Services.AddScoped<FreshStock.API.Interfaces.IPermisoService, FreshStock.API.Services.PermisoService>();
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

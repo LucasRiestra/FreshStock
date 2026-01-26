@@ -7,6 +7,7 @@ namespace FreshStock.API.Interfaces
         Task<IEnumerable<MovimientoInventarioResponseDTO>> GetAllAsync();
         Task<MovimientoInventarioResponseDTO?> GetByIdAsync(int id);
         Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByRestauranteIdAsync(int restauranteId);
+        Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByRestaurantesIdsAsync(IEnumerable<int> restauranteIds);
         Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByProductoIdAsync(int productoId);
         Task<IEnumerable<MovimientoInventarioResponseDTO>> GetByUsuarioIdAsync(int usuarioId);
         Task<MovimientoInventarioResponseDTO> CreateAsync(CreateMovimientoInventarioDTO dto);
