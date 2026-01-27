@@ -64,6 +64,8 @@ namespace FreshStock.API.Services
             var usuario = _mapper.Map<Usuario>(dto);
             usuario.Id = await _context.GetNextSequenceAsync("usuarios");
             usuario.Activo = true;
+            // Hashear la contraseña con bcrypt
+            usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
             await _context.Usuarios.InsertOneAsync(usuario);
 
