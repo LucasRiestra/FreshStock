@@ -46,5 +46,6 @@ namespace FreshStock.API.DTOs
         public string Nombre { get; set; }
         public string Email { get; set; }
         public bool Activo { get; set; }
+        public bool EsSuperAdmin { get; set; }
     }
 }

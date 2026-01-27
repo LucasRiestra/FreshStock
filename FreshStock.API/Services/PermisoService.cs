@@ -92,9 +92,17 @@ namespace FreshStock.API.Services
             return await TieneAccesoARestauranteAsync(usuarioId, restauranteId);
         }
 
-        // Solo Admin puede crear nuevos restaurantes
+        // Solo Admin o SuperAdmin puede crear nuevos restaurantes
         public async Task<bool> PuedeCrearRestaurantesAsync(int usuarioId)
         {
+            // Verificar si es SuperAdmin del sistema
+            var usuario = await _context.Usuarios
+                .Find(u => u.Id == usuarioId)
+                .FirstOrDefaultAsync();
+
+            if (usuario?.EsSuperAdmin == true)
+                return true;
+
             return await EsAdminEnAlgunRestauranteAsync(usuarioId);
         }
 
@@ -104,10 +112,17 @@ namespace FreshStock.API.Services
 
         public async Task<PermisoUsuarioDTO> GetPermisosUsuarioAsync(int usuarioId)
         {
+            // Verificar si es SuperAdmin del sistema
+            var usuario = await _context.Usuarios
+                .Find(u => u.Id == usuarioId)
+                .FirstOrDefaultAsync();
+
+            var esSuperAdmin = usuario?.EsSuperAdmin == true;
+
             var permisos = new PermisoUsuarioDTO
             {
                 UsuarioId = usuarioId,
-                PuedeCrearRestaurantes = await EsAdminEnAlgunRestauranteAsync(usuarioId)
+                PuedeCrearRestaurantes = esSuperAdmin || await EsAdminEnAlgunRestauranteAsync(usuarioId)
             };
 
             // Obtener todas las asignaciones del usuario
