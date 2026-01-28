@@ -26,6 +26,12 @@ namespace FreshStock.API.Interfaces
         Task<bool> PuedeGestionarInventarioAsync(int usuarioId, int restauranteId);
         Task<bool> PuedeCrearRestaurantesAsync(int usuarioId);
 
+        // Admin y Gerente pueden gestionar stock ideal
+        Task<bool> PuedeGestionarStockIdealAsync(int usuarioId, int restauranteId);
+
+        // Verificar si es SuperAdmin del sistema
+        Task<bool> EsSuperAdminAsync(int usuarioId);
+
         // Obtener información de permisos del usuario (para enviar al frontend)
         Task<PermisoUsuarioDTO> GetPermisosUsuarioAsync(int usuarioId);
     }

@@ -64,6 +64,24 @@ builder.Services.AddScoped<FreshStock.API.Interfaces.IRestauranteCategoriaServic
 // Servicio de permisos y autorización
 builder.Services.AddScoped<FreshStock.API.Interfaces.IPermisoService, FreshStock.API.Services.PermisoService>();
 
+// Servicio de stock ideal por restaurante
+builder.Services.AddScoped<FreshStock.API.Interfaces.IStockIdealRestauranteService, FreshStock.API.Services.StockIdealRestauranteService>();
+
+// Servicio de inventarios con historial
+builder.Services.AddScoped<FreshStock.API.Interfaces.IInventarioService, FreshStock.API.Services.InventarioService>();
+
+// Servicio de comparativa de stock
+builder.Services.AddScoped<FreshStock.API.Interfaces.IComparativaStockService, FreshStock.API.Services.ComparativaStockService>();
+
+// Servicio de alertas de stock
+builder.Services.AddScoped<FreshStock.API.Interfaces.IAlertaStockService, FreshStock.API.Services.AlertaStockService>();
+
+// Servicio de email
+builder.Services.AddScoped<FreshStock.API.Interfaces.IEmailService, FreshStock.API.Services.EmailService>();
+
+// Servicio de importación/exportación Excel
+builder.Services.AddScoped<FreshStock.API.Interfaces.IImportacionExcelService, FreshStock.API.Services.ImportacionExcelService>();
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

@@ -27,6 +27,16 @@ namespace FreshStock.API.Data
         public IMongoCollection<RestauranteProveedor> RestauranteProveedores => _database.GetCollection<RestauranteProveedor>("restauranteProveedores");
         public IMongoCollection<RestauranteCategoria> RestauranteCategorias => _database.GetCollection<RestauranteCategoria>("restauranteCategorias");
 
+        // Stock ideal por restaurante
+        public IMongoCollection<StockIdealRestaurante> StockIdealRestaurantes => _database.GetCollection<StockIdealRestaurante>("stockIdealRestaurantes");
+
+        // Inventarios con historial
+        public IMongoCollection<Inventario> Inventarios => _database.GetCollection<Inventario>("inventarios");
+        public IMongoCollection<InventarioDetalle> InventarioDetalles => _database.GetCollection<InventarioDetalle>("inventarioDetalles");
+
+        // Alertas de stock
+        public IMongoCollection<AlertaStock> AlertasStock => _database.GetCollection<AlertaStock>("alertasStock");
+
         // Método para obtener el siguiente ID secuencial
         public async Task<int> GetNextSequenceAsync(string collectionName)
         {

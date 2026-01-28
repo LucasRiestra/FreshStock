@@ -92,6 +92,26 @@ namespace FreshStock.API.Services
             return await TieneAccesoARestauranteAsync(usuarioId, restauranteId);
         }
 
+        // Admin y Gerente pueden gestionar stock ideal
+        public async Task<bool> PuedeGestionarStockIdealAsync(int usuarioId, int restauranteId)
+        {
+            // Verificar si es SuperAdmin
+            if (await EsSuperAdminAsync(usuarioId))
+                return true;
+
+            return await TieneRolMinimoEnRestauranteAsync(usuarioId, restauranteId, RolUsuario.Gerente);
+        }
+
+        // Verificar si es SuperAdmin del sistema
+        public async Task<bool> EsSuperAdminAsync(int usuarioId)
+        {
+            var usuario = await _context.Usuarios
+                .Find(u => u.Id == usuarioId)
+                .FirstOrDefaultAsync();
+
+            return usuario?.EsSuperAdmin == true;
+        }
+
         // Solo Admin o SuperAdmin puede crear nuevos restaurantes
         public async Task<bool> PuedeCrearRestaurantesAsync(int usuarioId)
         {

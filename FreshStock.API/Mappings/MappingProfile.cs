@@ -56,6 +56,22 @@ namespace FreshStock.API.Mappings
             CreateMap<RestauranteCategoria, RestauranteCategoriaResponseDTO>();
             CreateMap<CreateRestauranteCategoriaDTO, RestauranteCategoria>();
             CreateMap<UpdateRestauranteCategoriaDTO, RestauranteCategoria>();
+
+            // StockIdealRestaurante
+            CreateMap<StockIdealRestaurante, StockIdealRestauranteResponseDTO>();
+            CreateMap<CreateStockIdealRestauranteDTO, StockIdealRestaurante>();
+            CreateMap<UpdateStockIdealRestauranteDTO, StockIdealRestaurante>();
+
+            // Inventario
+            CreateMap<Inventario, InventarioResponseDTO>();
+            CreateMap<CreateInventarioDTO, Inventario>();
+
+            // InventarioDetalle
+            CreateMap<InventarioDetalle, InventarioDetalleResponseDTO>();
+            CreateMap<CreateInventarioDetalleDTO, InventarioDetalle>();
+
+            // AlertaStock
+            CreateMap<AlertaStock, AlertaStockResponseDTO>();
         }
     }
 }
