@@ -70,6 +70,50 @@ namespace FreshStock.API.Controllers
             return Ok(productos);
         }
 
+        // GET: api/producto/restaurante/5/proveedor/1
+        // Obtiene productos de un proveedor específico dentro de un restaurante
+        [HttpGet("restaurante/{restauranteId}/proveedor/{proveedorId}")]
+        public async Task<ActionResult<IEnumerable<ProductoResponseDTO>>> GetByRestauranteYProveedor(int restauranteId, int proveedorId)
+        {
+            var usuarioId = GetUsuarioIdFromToken();
+            if (usuarioId == null)
+                return Unauthorized(new { message = "No se pudo obtener el ID del usuario" });
+
+            // Verificar que el usuario tiene acceso al restaurante
+            var tieneAcceso = await _permisoService.TieneAccesoARestauranteAsync(usuarioId.Value, restauranteId);
+            if (!tieneAcceso)
+            {
+                var esAdmin = await _permisoService.EsAdminEnAlgunRestauranteAsync(usuarioId.Value);
+                if (!esAdmin)
+                    return Forbid();
+            }
+
+            var productos = await _productoService.GetByRestauranteYProveedorAsync(restauranteId, proveedorId);
+            return Ok(productos);
+        }
+
+        // GET: api/producto/restaurante/5/categoria/1
+        // Obtiene productos de una categoría específica dentro de un restaurante
+        [HttpGet("restaurante/{restauranteId}/categoria/{categoriaId}")]
+        public async Task<ActionResult<IEnumerable<ProductoResponseDTO>>> GetByRestauranteYCategoria(int restauranteId, int categoriaId)
+        {
+            var usuarioId = GetUsuarioIdFromToken();
+            if (usuarioId == null)
+                return Unauthorized(new { message = "No se pudo obtener el ID del usuario" });
+
+            // Verificar que el usuario tiene acceso al restaurante
+            var tieneAcceso = await _permisoService.TieneAccesoARestauranteAsync(usuarioId.Value, restauranteId);
+            if (!tieneAcceso)
+            {
+                var esAdmin = await _permisoService.EsAdminEnAlgunRestauranteAsync(usuarioId.Value);
+                if (!esAdmin)
+                    return Forbid();
+            }
+
+            var productos = await _productoService.GetByRestauranteYCategoriaAsync(restauranteId, categoriaId);
+            return Ok(productos);
+        }
+
         // GET: api/producto/restaurante/5
         // Obtiene productos de los proveedores asignados a un restaurante
         [HttpGet("restaurante/{restauranteId}")]

@@ -9,8 +9,10 @@ namespace FreshStock.API.Interfaces
         Task<IEnumerable<ProductoResponseDTO>> GetByCategoriaIdAsync(int categoriaId);
         Task<IEnumerable<ProductoResponseDTO>> GetByProveedorIdAsync(int proveedorId);
 
-        // Filtros por restaurante/usuario (solo productos de proveedores asignados)
+        // Filtros por restaurante/usuario (solo productos de proveedores y categorías asignados)
         Task<IEnumerable<ProductoResponseDTO>> GetByRestauranteIdAsync(int restauranteId);
+        Task<IEnumerable<ProductoResponseDTO>> GetByRestauranteYProveedorAsync(int restauranteId, int proveedorId);
+        Task<IEnumerable<ProductoResponseDTO>> GetByRestauranteYCategoriaAsync(int restauranteId, int categoriaId);
         Task<IEnumerable<ProductoResponseDTO>> GetByUsuarioIdAsync(int usuarioId);
 
         Task<ProductoResponseDTO> CreateAsync(CreateProductoDTO dto);
