@@ -130,6 +130,34 @@ namespace FreshStock.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = categoria.Id }, categoria);
         }
 
+        // PUT: api/categoria/5
+        // Solo Admin o Gerente pueden actualizar categorías
+        [HttpPut("{id}")]
+        public async Task<ActionResult<CategoriaResponseDTO>> Update(int id, [FromBody] UpdateCategoriaDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (id != dto.Id)
+                return BadRequest(new { message = "El ID de la URL no coincide con el ID del body" });
+
+            var usuarioId = GetUsuarioIdFromToken();
+            if (usuarioId == null)
+                return Unauthorized(new { message = "No se pudo obtener el ID del usuario" });
+
+            // Verificar que sea Admin o Gerente
+            var tienePermiso = await _permisoService.EsAdminOGerenteEnAlgunRestauranteAsync(usuarioId.Value);
+            if (!tienePermiso)
+                return Forbid();
+
+            var categoria = await _categoriaService.UpdateAsync(dto);
+
+            if (categoria == null)
+                return NotFound(new { message = $"Categoría con ID {id} no encontrada" });
+
+            return Ok(categoria);
+        }
+
         // DELETE: api/categoria/5
         // Solo Admin o Gerente pueden eliminar categorías
         [HttpDelete("{id}")]

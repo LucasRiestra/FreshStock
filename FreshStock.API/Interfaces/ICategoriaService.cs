@@ -7,6 +7,7 @@ namespace FreshStock.API.Interfaces
         Task<IEnumerable<CategoriaResponseDTO>> GetAllAsync();
         Task<CategoriaResponseDTO?> GetByIdAsync(int id);
         Task<CategoriaResponseDTO> CreateAsync(CreateCategoriaDTO dto);
+        Task<CategoriaResponseDTO?> UpdateAsync(UpdateCategoriaDTO dto);
         Task<bool> DeleteAsync(int id);
     }
 }

@@ -21,6 +21,10 @@ namespace FreshStock.API.DTOs
         [Required]
         [MaxLength(100)]
         public string Contacto { get; set; }
+
+        // Lista de IDs de restaurantes a asociar
+        // Si es null o vacía, el proveedor es global (disponible para todos)
+        public List<int>? RestauranteIds { get; set; }
     }
 
     // PUT - Actualizar proveedor
@@ -48,6 +52,10 @@ namespace FreshStock.API.DTOs
 
         [Required]
         public bool Activo { get; set; }
+
+        // Lista de IDs de restaurantes a asociar
+        // Si es null o vacía, el proveedor es global (disponible para todos)
+        public List<int>? RestauranteIds { get; set; }
     }
 
     // GET - Respuesta
@@ -59,5 +67,6 @@ namespace FreshStock.API.DTOs
         public string Email { get; set; }
         public string Contacto { get; set; }
         public bool Activo { get; set; }
+        public List<int>? RestauranteIds { get; set; }
     }
 }
