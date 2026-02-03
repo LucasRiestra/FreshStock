@@ -53,6 +53,7 @@ namespace FreshStock.API.DTOs
     public class FinalizarInventarioDTO
     {
         public string? Notas { get; set; }
+        public bool ActualizarStock { get; set; } = false;
     }
 
     // GET - Categoría para navegación durante conteo

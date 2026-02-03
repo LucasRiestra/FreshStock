@@ -137,6 +137,12 @@ namespace FreshStock.API.Services
             var resultadoAlertas = await _alertaService.GenerarAlertasAsync(inventario.RestauranteId);
             await _emailService.SendAlertaStockEmailAsync(inventario.RestauranteId, resultadoAlertas);
 
+            // Si se solicitó actualizar el stock (para inventarios físicos que hacen "reset" del stock)
+            if (dto?.ActualizarStock == true)
+            {
+                await ActualizarStockDesdeInventarioAsync(inventario);
+            }
+
             return await BuildInventarioResponseAsync(inventario);
         }
 
@@ -557,6 +563,96 @@ namespace FreshStock.API.Services
                 NombreCategoria = categoria?.Nombre,
                 UnidadMedida = producto?.UnidadMedida
             };
+        }
+
+        private async Task ActualizarStockDesdeInventarioAsync(Inventario inventario)
+        {
+            // Obtener todos los detalles del inventario
+            var detalles = await _context.InventarioDetalles
+                .Find(d => d.InventarioId == inventario.Id)
+                .ToListAsync();
+
+            // Obtener lista de productos para saber sus costos
+            var productoIds = detalles.Select(d => d.ProductoId).Distinct().ToList();
+            var productos = await _context.Productos
+                .Find(p => productoIds.Contains(p.Id))
+                .ToListAsync();
+            var productosDict = productos.ToDictionary(p => p.Id);
+
+            foreach (var detalle in detalles)
+            {
+                // Buscar si existe stock para este producto en este restaurante
+                // Asumimos Lote "INVENTARIO" y FechaCaducidad null por defecto al venir de un conteo general
+                // En una versión más avanzada, el conteo podría incluir lote y caducidad
+                
+                var stock = await _context.StockLocal
+                    .Find(s => s.RestauranteId == inventario.RestauranteId && s.ProductoId == detalle.ProductoId)
+                    .FirstOrDefaultAsync();
+
+                if (stock != null)
+                {
+                    // Si existe, actualizamos la cantidad directamente (Sobrescritura)
+                    var diferencia = detalle.CantidadContada - stock.Cantidad;
+                    
+                    if (diferencia != 0)
+                    {
+                        var update = Builders<StockLocal>.Update
+                            .Set(s => s.Cantidad, detalle.CantidadContada);
+                            
+                        await _context.StockLocal.UpdateOneAsync(s => s.Id == stock.Id, update);
+
+                        // Registrar Movimiento de Ajuste
+                        var movimiento = new MovimientoInventario
+                        {
+                            Id = await _context.GetNextSequenceAsync("movimientosInventario"),
+                            Tipo = diferencia > 0 ? "Entrada" : "Salida",
+                            ProductoId = detalle.ProductoId,
+                            RestauranteId = inventario.RestauranteId,
+                            Cantidad = Math.Abs(diferencia),
+                            Lote = stock.Lote ?? "SIN_LOTE",
+                            Motivo = $"Ajuste por Inventario #{inventario.Id}",
+                            CostoUnitario = stock.CostoUnitario,
+                            UsuarioId = inventario.UsuarioId,
+                            Fecha = DateTime.UtcNow
+                        };
+                        await _context.MovimientosInventario.InsertOneAsync(movimiento);
+                    }
+                }
+                else if (detalle.CantidadContada > 0)
+                {
+                    // Si no existe y se contó algo, creamos el stock
+                    var producto = productosDict.ContainsKey(detalle.ProductoId) ? productosDict[detalle.ProductoId] : null;
+                    
+                    var newStock = new StockLocal
+                    {
+                        Id = await _context.GetNextSequenceAsync("stockLocal"),
+                        ProductoId = detalle.ProductoId,
+                        RestauranteId = inventario.RestauranteId,
+                        Cantidad = detalle.CantidadContada,
+                        Lote = "INICIAL", // Lote por defecto
+                        CostoUnitario = producto?.CostoUnitario ?? 0,
+                        FechaEntrada = DateTime.UtcNow
+                    };
+                    
+                    await _context.StockLocal.InsertOneAsync(newStock);
+
+                    // Registrar Movimiento de Entrada Inicial
+                    var movimiento = new MovimientoInventario
+                    {
+                        Id = await _context.GetNextSequenceAsync("movimientosInventario"),
+                        Tipo = "Entrada",
+                        ProductoId = detalle.ProductoId,
+                        RestauranteId = inventario.RestauranteId,
+                        Cantidad = detalle.CantidadContada,
+                        Lote = "INICIAL",
+                        Motivo = $"Inventario Inicial #{inventario.Id}",
+                        CostoUnitario = producto?.CostoUnitario ?? 0,
+                        UsuarioId = inventario.UsuarioId,
+                        Fecha = DateTime.UtcNow
+                    };
+                    await _context.MovimientosInventario.InsertOneAsync(movimiento);
+                }
+            }
         }
 
         #endregion
