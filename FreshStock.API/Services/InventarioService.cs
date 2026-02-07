@@ -168,6 +168,24 @@ namespace FreshStock.API.Services
             return await BuildInventarioResponseAsync(inventario);
         }
 
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var inventario = await _context.Inventarios
+                .Find(i => i.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (inventario == null)
+                return false;
+
+            // Eliminar detalles asociados
+            await _context.InventarioDetalles.DeleteManyAsync(d => d.InventarioId == id);
+
+            // Eliminar cabecera del inventario
+            var result = await _context.Inventarios.DeleteOneAsync(i => i.Id == id);
+
+            return result.DeletedCount > 0;
+        }
+
         #endregion
 
         #region Navegación para Conteo
@@ -306,10 +324,17 @@ namespace FreshStock.API.Services
                 .GroupBy(s => s.ProductoId)
                 .ToDictionary(g => g.Key, g => g.Sum(s => s.Cantidad));
 
+            // Obtener stock ideal para referencia
+            var stockIdeales = await _context.StockIdealRestaurantes
+                .Find(s => s.RestauranteId == inventario.RestauranteId && productoIds.Contains(s.ProductoId) && s.Activo)
+                .ToListAsync();
+            var idealDict = stockIdeales.ToDictionary(s => s.ProductoId);
+
             var result = productos.Select(prod =>
             {
                 var detalle = detallesDict.GetValueOrDefault(prod.Id);
                 var cantidadSistema = stockPorProducto.GetValueOrDefault(prod.Id, 0);
+                var ideal = idealDict.GetValueOrDefault(prod.Id);
 
                 return new ProductoConteoDTO
                 {
@@ -319,6 +344,8 @@ namespace FreshStock.API.Services
                     ProveedorId = prod.ProveedorId,
                     CategoriaId = prod.CategoriaId,
                     CantidadSistema = cantidadSistema,
+                    StockIdeal = ideal?.StockIdeal,
+                    StockMinimo = ideal?.StockMinimo,
                     CantidadContada = detalle?.CantidadContada,
                     YaContado = detalle != null,
                     Observacion = detalle?.Observacion
@@ -344,6 +371,44 @@ namespace FreshStock.API.Services
             if (inventario.Estado != EstadoInventario.EnProgreso)
                 throw new InvalidOperationException("Solo se pueden registrar conteos en inventarios en progreso");
 
+            return await RegistrarConteoInternoAsync(inventario, dto);
+        }
+
+        public async Task<IEnumerable<InventarioDetalleResponseDTO>> RegistrarConteosBulkAsync(int inventarioId, CreateInventarioDetalleBulkDTO dto)
+        {
+            var resultados = new List<InventarioDetalleResponseDTO>();
+            
+            var inventario = await _context.Inventarios
+                .Find(i => i.Id == inventarioId)
+                .FirstOrDefaultAsync();
+
+            if (inventario == null)
+                throw new InvalidOperationException($"Inventario con ID {inventarioId} no encontrado");
+
+            if (inventario.Estado != EstadoInventario.EnProgreso)
+                throw new InvalidOperationException("Solo se pueden registrar conteos en inventarios en progreso");
+
+            foreach (var conteo in dto.Conteos)
+            {
+                try 
+                {
+                    // Llamamos a un método interno que no vuelva a verificar el inventario
+                    var resultado = await RegistrarConteoInternoAsync(inventario, conteo);
+                    resultados.Add(resultado);
+                }
+                catch (Exception ex)
+                {
+                    // Log the error for this specific product but continue with others if needed?
+                    // For now, if any fails in bulk, we might want to know which one.
+                    throw new InvalidOperationException($"Error procesando producto {conteo.ProductoId}: {ex.Message}");
+                }
+            }
+
+            return resultados;
+        }
+
+        private async Task<InventarioDetalleResponseDTO> RegistrarConteoInternoAsync(Inventario inventario, CreateInventarioDetalleDTO dto)
+        {
             // Obtener el producto
             var producto = await _context.Productos
                 .Find(p => p.Id == dto.ProductoId)
@@ -354,15 +419,24 @@ namespace FreshStock.API.Services
 
             // Verificar si ya existe un conteo para este producto
             var existente = await _context.InventarioDetalles
-                .Find(d => d.InventarioId == inventarioId && d.ProductoId == dto.ProductoId)
+                .Find(d => d.InventarioId == inventario.Id && d.ProductoId == dto.ProductoId)
                 .FirstOrDefaultAsync();
 
             if (existente != null)
             {
-                throw new InvalidOperationException($"Ya existe un conteo para el producto {dto.ProductoId}. Use el endpoint de actualización.");
+                // Update existing
+                existente.CantidadContada = dto.CantidadContada;
+                existente.Observacion = dto.Observacion;
+                existente.FechaConteo = DateTime.UtcNow;
+                
+                // Recalcular diferencia
+                existente.Diferencia = dto.CantidadContada - (existente.CantidadSistema ?? 0);
+
+                await _context.InventarioDetalles.ReplaceOneAsync(d => d.Id == existente.Id, existente);
+                return await BuildDetalleResponseAsync(existente);
             }
 
-            // Obtener stock actual del sistema para referencia
+            // Create new
             var stockActual = await _context.StockLocal
                 .Find(s => s.RestauranteId == inventario.RestauranteId && s.ProductoId == dto.ProductoId)
                 .ToListAsync();
@@ -371,7 +445,7 @@ namespace FreshStock.API.Services
             var detalle = new InventarioDetalle
             {
                 Id = await _context.GetNextSequenceAsync("inventarioDetalles"),
-                InventarioId = inventarioId,
+                InventarioId = inventario.Id,
                 ProductoId = dto.ProductoId,
                 ProveedorId = producto.ProveedorId,
                 CategoriaId = producto.CategoriaId,
@@ -383,21 +457,7 @@ namespace FreshStock.API.Services
             };
 
             await _context.InventarioDetalles.InsertOneAsync(detalle);
-
             return await BuildDetalleResponseAsync(detalle);
-        }
-
-        public async Task<IEnumerable<InventarioDetalleResponseDTO>> RegistrarConteosBulkAsync(int inventarioId, CreateInventarioDetalleBulkDTO dto)
-        {
-            var resultados = new List<InventarioDetalleResponseDTO>();
-
-            foreach (var conteo in dto.Conteos)
-            {
-                var resultado = await RegistrarConteoAsync(inventarioId, conteo);
-                resultados.Add(resultado);
-            }
-
-            return resultados;
         }
 
         public async Task<InventarioDetalleResponseDTO?> ActualizarConteoAsync(int inventarioId, UpdateInventarioDetalleDTO dto)
@@ -498,14 +558,31 @@ namespace FreshStock.API.Services
 
         public async Task<IEnumerable<InventarioDetalleResponseDTO>> GetDetallesAsync(int inventarioId)
         {
+            var inventario = await _context.Inventarios.Find(i => i.Id == inventarioId).FirstOrDefaultAsync();
+            if (inventario == null) return new List<InventarioDetalleResponseDTO>();
+
             var detalles = await _context.InventarioDetalles
                 .Find(d => d.InventarioId == inventarioId)
                 .ToListAsync();
 
+            var productoIds = detalles.Select(d => d.ProductoId).Distinct().ToList();
+            
+            // Obtener stock ideal para referencia
+            var stockIdeales = await _context.StockIdealRestaurantes
+                .Find(s => s.RestauranteId == inventario.RestauranteId && productoIds.Contains(s.ProductoId) && s.Activo)
+                .ToListAsync();
+            var idealDict = stockIdeales.ToDictionary(s => s.ProductoId);
+
             var result = new List<InventarioDetalleResponseDTO>();
             foreach (var detalle in detalles)
             {
-                result.Add(await BuildDetalleResponseAsync(detalle));
+                var response = await BuildDetalleResponseAsync(detalle);
+                if (idealDict.TryGetValue(detalle.ProductoId, out var ideal))
+                {
+                    response.StockIdeal = ideal.StockIdeal;
+                    response.StockMinimo = ideal.StockMinimo;
+                }
+                result.Add(response);
             }
 
             return result;
@@ -545,8 +622,18 @@ namespace FreshStock.API.Services
             var producto = await _context.Productos.Find(p => p.Id == detalle.ProductoId).FirstOrDefaultAsync();
             var proveedor = await _context.Proveedores.Find(p => p.Id == detalle.ProveedorId).FirstOrDefaultAsync();
             var categoria = await _context.Categorias.Find(c => c.Id == detalle.CategoriaId).FirstOrDefaultAsync();
+            
+            // Obtener stock ideal para este restaurante y producto
+            var inventario = await _context.Inventarios.Find(i => i.Id == detalle.InventarioId).FirstOrDefaultAsync();
+            StockIdealRestaurante? ideal = null;
+            if (inventario != null)
+            {
+                ideal = await _context.StockIdealRestaurantes
+                    .Find(s => s.RestauranteId == inventario.RestauranteId && s.ProductoId == detalle.ProductoId && s.Activo)
+                    .FirstOrDefaultAsync();
+            }
 
-            return new InventarioDetalleResponseDTO
+            var response = new InventarioDetalleResponseDTO
             {
                 Id = detalle.Id,
                 InventarioId = detalle.InventarioId,
@@ -555,6 +642,8 @@ namespace FreshStock.API.Services
                 CategoriaId = detalle.CategoriaId,
                 CantidadContada = detalle.CantidadContada,
                 CantidadSistema = detalle.CantidadSistema,
+                StockIdeal = ideal?.StockIdeal,
+                StockMinimo = ideal?.StockMinimo,
                 Diferencia = detalle.Diferencia,
                 Observacion = detalle.Observacion,
                 FechaConteo = detalle.FechaConteo,
@@ -563,6 +652,8 @@ namespace FreshStock.API.Services
                 NombreCategoria = categoria?.Nombre,
                 UnidadMedida = producto?.UnidadMedida
             };
+
+            return response;
         }
 
         private async Task ActualizarStockDesdeInventarioAsync(Inventario inventario)

@@ -85,6 +85,8 @@ namespace FreshStock.API.DTOs
         public int ProveedorId { get; set; }
         public int CategoriaId { get; set; }
         public decimal? CantidadSistema { get; set; }  // Stock actual del sistema
+        public decimal? StockIdeal { get; set; }      // Referencia ideal
+        public decimal? StockMinimo { get; set; }     // Referencia mínima
         public decimal? CantidadContada { get; set; }  // Si ya fue contado
         public bool YaContado { get; set; }
         public string? Observacion { get; set; }

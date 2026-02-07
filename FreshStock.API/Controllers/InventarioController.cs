@@ -165,6 +165,30 @@ namespace FreshStock.API.Controllers
             }
         }
 
+        // DELETE: api/inventario/5
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var usuarioId = GetUsuarioIdFromToken();
+            if (usuarioId == null)
+                return Unauthorized(new { message = "No se pudo obtener el ID del usuario" });
+
+            var inventario = await _inventarioService.GetByIdAsync(id);
+            if (inventario == null)
+                return NotFound(new { message = $"Inventario con ID {id} no encontrado" });
+
+            // Solo Admin, Gerente o SuperAdmin pueden eliminar
+            var tienePermiso = await _permisoService.PuedeGestionarStockIdealAsync(usuarioId.Value, inventario.RestauranteId);
+            if (!tienePermiso)
+                return Forbid();
+
+            var resultado = await _inventarioService.DeleteAsync(id);
+            if (!resultado)
+                return BadRequest(new { message = "No se pudo eliminar el inventario" });
+
+            return NoContent();
+        }
+
         #endregion
 
         #region Navegación para Conteo

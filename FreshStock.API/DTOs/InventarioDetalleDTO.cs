@@ -46,6 +46,8 @@ namespace FreshStock.API.DTOs
         public int CategoriaId { get; set; }
         public decimal CantidadContada { get; set; }
         public decimal? CantidadSistema { get; set; }
+        public decimal? StockIdeal { get; set; }
+        public decimal? StockMinimo { get; set; }
         public decimal? Diferencia { get; set; }
         public string? Observacion { get; set; }
         public DateTime FechaConteo { get; set; }

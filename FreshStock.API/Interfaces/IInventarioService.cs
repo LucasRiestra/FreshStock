@@ -11,6 +11,7 @@ namespace FreshStock.API.Interfaces
         Task<InventarioResponseDTO?> GetActualByRestauranteIdAsync(int restauranteId);
         Task<InventarioResponseDTO?> FinalizarAsync(int inventarioId, FinalizarInventarioDTO? dto);
         Task<InventarioResponseDTO?> CancelarAsync(int inventarioId);
+        Task<bool> DeleteAsync(int id);
 
         // Navegación para conteo
         Task<IEnumerable<CategoriaConteoDTO>> GetCategoriasAsync(int inventarioId);
